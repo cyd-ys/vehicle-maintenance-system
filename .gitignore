@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.db
+*.sqlite3
+
+# Node
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# 环境变量
+.env
+.env.local
+
+# 用户上传的文件（头像等）
+backend/uploads/
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+
+# 临时目录 / 智能体工作区（含本地调试脚本与笔记，切勿发布）
+.tmp/
+.workbuddy/

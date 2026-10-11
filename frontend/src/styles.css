@@ -1,0 +1,753 @@
+/* ==========================================================================
+   汽车养护预约服务系统 · 全局设计系统
+   所有颜色走 CSS 变量，浅色 / 暗色两套主题共用同一套组件样式
+   ========================================================================== */
+
+:root {
+  /* 品牌色 */
+  --brand: #1677ff;
+  --brand-2: #22b0ff;
+  --brand-soft: rgba(22, 119, 255, 0.1);
+
+  /* 圆角 */
+  --radius-lg: 16px;
+  --radius: 12px;
+  --radius-sm: 8px;
+
+  /* 页面底色与承载面 */
+  --app-bg: #eef2f9;
+  --app-bg-image:
+    radial-gradient(900px 420px at 8% -12%, rgba(22, 119, 255, 0.16), transparent 62%),
+    radial-gradient(760px 380px at 96% 4%, rgba(34, 211, 238, 0.14), transparent 60%);
+  --app-surface: #ffffff;
+  --app-surface-2: #f5f7fc;
+  --app-surface-3: #eef2f8;
+  --app-border: #e6ebf3;
+  --app-text: #16202e;
+  --app-text-muted: #7a8699;
+
+  /* 阴影 */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 2px 8px rgba(16, 24, 40, 0.06);
+  --shadow: 0 8px 24px rgba(16, 24, 40, 0.09);
+  --shadow-lg: 0 20px 48px rgba(16, 24, 40, 0.16);
+
+  /* 侧边导航（深浅主题都保持深色，形成稳定视觉锚点） */
+  --nav-bg: linear-gradient(180deg, #10203a 0%, #0a1526 100%);
+  --nav-text: #a8b6cc;
+  --nav-text-active: #ffffff;
+  --nav-hover: rgba(255, 255, 255, 0.08);
+  --nav-active: linear-gradient(90deg, #1677ff 0%, #2f8fff 100%);
+  --nav-border: rgba(255, 255, 255, 0.08);
+
+  /* 顶部栏 */
+  --topbar-bg: rgba(255, 255, 255, 0.82);
+
+  /* 渐变强调 */
+  --hero-bg: linear-gradient(122deg, #1677ff 0%, #3b9dff 48%, #22d3ee 100%);
+  --auth-bg:
+    radial-gradient(900px 500px at 12% 0%, rgba(22, 119, 255, 0.22), transparent 60%),
+    radial-gradient(760px 460px at 92% 100%, rgba(34, 211, 238, 0.2), transparent 58%),
+    linear-gradient(160deg, #eef4ff 0%, #f7f9fc 55%, #eefaf8 100%);
+}
+
+html.dark {
+  --brand: #4c9bff;
+  --brand-2: #45c8ff;
+  --brand-soft: rgba(76, 155, 255, 0.16);
+
+  --app-bg: #0b0f16;
+  --app-bg-image:
+    radial-gradient(900px 420px at 8% -12%, rgba(22, 119, 255, 0.18), transparent 62%),
+    radial-gradient(760px 380px at 96% 4%, rgba(14, 165, 183, 0.14), transparent 60%);
+  --app-surface: #151a22;
+  --app-surface-2: #1b212c;
+  --app-surface-3: #202836;
+  --app-border: #262e3c;
+  --app-text: #e6ebf3;
+  --app-text-muted: #8a97ab;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 22px 52px rgba(0, 0, 0, 0.62);
+
+  --nav-bg: linear-gradient(180deg, #0d1420 0%, #070b12 100%);
+  --nav-text: #8f9db3;
+  --nav-border: rgba(255, 255, 255, 0.06);
+
+  --topbar-bg: rgba(21, 26, 34, 0.82);
+
+  --hero-bg: linear-gradient(122deg, #0b53c4 0%, #1173cf 48%, #0d8fa3 100%);
+  --auth-bg:
+    radial-gradient(900px 500px at 12% 0%, rgba(22, 119, 255, 0.22), transparent 60%),
+    radial-gradient(760px 460px at 92% 100%, rgba(14, 165, 183, 0.18), transparent 58%),
+    linear-gradient(160deg, #0c1119 0%, #0b0f16 55%, #0a1418 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--app-bg);
+  background-image: var(--app-bg-image);
+  background-attachment: fixed;
+  color: var(--app-text);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--app-text-muted) 38%, transparent);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--app-text-muted) 60%, transparent);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------------------------- 通用工具类 ---------------------------- */
+.page-container {
+  padding: 22px;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.page-title {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-title::before {
+  content: "";
+  width: 4px;
+  height: 17px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--brand), var(--brand-2));
+}
+
+.page-subtitle {
+  color: var(--app-text-muted);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.mb-12 { margin-bottom: 12px; }
+.mt-12 { margin-top: 12px; }
+
+.text-muted {
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.brand-text {
+  color: var(--brand);
+}
+
+/* ---------------------------- Element Plus 微调 ---------------------------- */
+.el-card {
+  border-radius: var(--radius) !important;
+  border-color: var(--app-border) !important;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.el-card.is-never-shadow:hover {
+  box-shadow: var(--shadow);
+}
+
+.el-button {
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+.el-button--primary {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 130%);
+  border: none;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--brand) 30%, transparent);
+}
+
+.el-button--primary:hover {
+  filter: brightness(1.06);
+}
+
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  border-radius: var(--radius-sm);
+}
+
+.el-table {
+  --el-table-header-bg-color: var(--app-surface-2);
+  --el-table-row-hover-bg-color: color-mix(in srgb, var(--brand) 7%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.el-table th.el-table__cell {
+  font-weight: 600;
+}
+
+.el-dialog {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.el-tag {
+  border-radius: 6px;
+}
+
+.el-pagination {
+  justify-content: flex-end;
+}
+
+/* ---------------------------- 顶栏（用户端） ---------------------------- */
+.brand-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 64px;
+  padding: 0 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--topbar-bg);
+  backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--app-border);
+}
+
+.brand-logo {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: var(--app-text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.brand-logo .logo-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 130%);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--brand) 35%, transparent);
+}
+
+.brand-nav {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.brand-nav a {
+  color: var(--app-text-muted);
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.brand-nav a:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+/* 高亮由组件按当前路由精确计算，避免前缀匹配导致多个菜单同时点亮 */
+.brand-nav a.nav-active {
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 130%);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--brand) 30%, transparent);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.user-chip:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--app-border));
+}
+
+.user-chip .avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 130%);
+}
+
+/* ---------------------------- 侧边导航（门店端 / 管理端） ---------------------------- */
+.app-aside {
+  background: var(--nav-bg);
+  border-right: 1px solid var(--nav-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-aside-logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--nav-border);
+}
+
+.app-aside-logo .logo-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 130%);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--brand) 35%, transparent);
+}
+
+.app-menu {
+  border-right: none !important;
+  background: transparent !important;
+  padding: 12px 12px 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.app-menu .el-menu-item {
+  color: var(--nav-text) !important;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  height: 44px;
+  line-height: 44px;
+  transition: all 0.2s ease;
+}
+
+.app-menu .el-menu-item .el-icon {
+  font-size: 17px;
+}
+
+.app-menu .el-menu-item:hover {
+  color: var(--nav-text-active) !important;
+  background: var(--nav-hover) !important;
+}
+
+.app-menu .el-menu-item.is-active {
+  color: var(--nav-text-active) !important;
+  background: var(--nav-active) !important;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--brand) 40%, transparent);
+  font-weight: 600;
+}
+
+.app-aside-footer {
+  padding: 14px 18px;
+  color: color-mix(in srgb, var(--nav-text) 75%, transparent);
+  font-size: 12px;
+  border-top: 1px solid var(--nav-border);
+  line-height: 1.6;
+}
+
+.app-topbar {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+  background: var(--topbar-bg);
+  backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--app-border);
+}
+
+.app-topbar-title {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.app-main {
+  background: transparent;
+  padding: 22px;
+  overflow-y: auto;
+}
+
+/* ---------------------------- Hero ---------------------------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  border-radius: var(--radius-lg);
+  padding: 40px 36px;
+  margin-bottom: 22px;
+  background: var(--hero-bg);
+  box-shadow: var(--shadow-lg);
+}
+
+.hero::before,
+.hero::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.hero::before {
+  width: 260px;
+  height: 260px;
+  right: -70px;
+  top: -110px;
+}
+
+.hero::after {
+  width: 170px;
+  height: 170px;
+  right: 120px;
+  bottom: -100px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.hero h1 {
+  position: relative;
+  margin: 0 0 10px;
+  font-size: 27px;
+  letter-spacing: 0.4px;
+}
+
+.hero p {
+  position: relative;
+  margin: 0;
+  max-width: 620px;
+  opacity: 0.94;
+  line-height: 1.7;
+}
+
+/* ---------------------------- 门店卡片 ---------------------------- */
+.store-card {
+  cursor: pointer;
+  height: 100%;
+}
+
+.store-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg) !important;
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--app-border)) !important;
+}
+
+.store-card .store-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.store-card .store-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.store-card .store-foot {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--app-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--app-text-muted);
+  font-size: 12.5px;
+}
+
+.price-tag {
+  color: #f56c6c;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+html.dark .price-tag {
+  color: #ff7875;
+}
+
+/* ---------------------------- 统计卡片 ---------------------------- */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+}
+
+.stat-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--brand), var(--brand-2));
+}
+
+.stat-card .stat-value {
+  font-size: 27px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--app-text);
+  letter-spacing: -0.5px;
+}
+
+.stat-card .stat-label {
+  color: var(--app-text-muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.stat-card .stat-icon {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  font-size: 22px;
+  color: color-mix(in srgb, var(--brand) 45%, transparent);
+}
+
+.mini-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--app-surface-2);
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-size: 13.5px;
+  color: var(--app-text);
+}
+
+.mini-stat b {
+  margin-left: auto;
+  font-size: 15px;
+}
+
+.mini-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--app-text-muted);
+  flex: none;
+}
+
+.dot-pending { background: #e6a23c; }
+.dot-confirmed { background: var(--brand); }
+.dot-in_service { background: #8b95a8; }
+.dot-completed { background: #52c41a; }
+.dot-cancelled { background: #b6bfcd; }
+.dot-rejected { background: #f56c6c; }
+
+/* ---------------------------- 登录 / 注册 ---------------------------- */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--auth-bg);
+}
+
+.auth-card {
+  display: flex;
+  width: 940px;
+  max-width: 96vw;
+  min-height: 540px;
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-brand {
+  flex: 1.05;
+  position: relative;
+  overflow: hidden;
+  padding: 52px 44px;
+  color: #fff;
+  background: var(--hero-bg);
+}
+
+.auth-brand::before {
+  content: "";
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  right: -120px;
+  top: -120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.auth-brand::after {
+  content: "";
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  left: -90px;
+  bottom: -110px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.auth-brand > * {
+  position: relative;
+}
+
+.auth-brand h1 {
+  font-size: 30px;
+  line-height: 1.35;
+  margin: 18px 0 14px;
+  letter-spacing: 0.4px;
+}
+
+.auth-brand .sub {
+  opacity: 0.92;
+  line-height: 1.7;
+  margin-bottom: 26px;
+}
+
+.auth-brand ul {
+  padding-left: 18px;
+  line-height: 2.1;
+  opacity: 0.96;
+  font-size: 14px;
+}
+
+.auth-form {
+  flex: 1;
+  padding: 52px 46px;
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-form h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+
+.auth-form .hint {
+  color: var(--app-text-muted);
+  font-size: 13px;
+  margin: 0 0 22px;
+}
+
+.demo-accounts {
+  display: grid;
+  gap: 8px;
+}
+
+.demo-tag {
+  cursor: pointer;
+  justify-content: center;
+  width: 100%;
+  height: 32px;
+  transition: transform 0.15s ease;
+}
+
+.demo-tag:hover {
+  transform: translateX(3px);
+}
+
+/* ---------------------------- 路由过渡 ---------------------------- */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-slide-enter-active,
+  .fade-slide-leave-active {
+    transition: none;
+  }
+}
+
+/* ---------------------------- 响应式 ---------------------------- */
+@media (max-width: 900px) {
+  .brand-nav {
+    display: none;
+  }
+  .auth-card {
+    flex-direction: column;
+  }
+  .auth-brand {
+    padding: 34px 28px;
+  }
+  .auth-brand ul {
+    display: none;
+  }
+  .auth-form {
+    padding: 32px 26px;
+  }
+  .page-container {
+    padding: 16px;
+  }
+}
