@@ -6,6 +6,9 @@
 面向中小型汽车养护门店的在线预约平台，采用**前后端分离的 B/S 架构**，覆盖普通用户、门店工作人员、系统管理员三类角色的完整业务闭环：
 **浏览项目 → 选择门店 → 提交预约 → 门店受理 → 状态查询**。
 
+> **在线演示**：<https://vehicle-maintenance-60338.app.workbuddy.host/>
+> （单端口部署，演示账号见 §五；本地运行方式见 §四）
+
 ## 一、技术栈
 
 | 层次 | 技术选型 | 说明 |
@@ -38,7 +41,10 @@
 │   ├── requirements.txt
 │   ├── .env.example             # 配置模板
 │   ├── init-db.bat              # 初始化数据库 + 演示数据
+│   ├── run.py                   # 单端口部署入口（读 PORT，绑定 0.0.0.0）
 │   └── start-backend.bat        # 启动后端
+├── build-deploy.py              # 打包 deploy/ 单端口部署包（发布用，见 §4.4）
+├── deploy/                      # ↑ 生成的部署包（不进版本库）
 └── frontend/                    # Vue 3 前端
     ├── src/
     │   ├── api/                 # axios 封装 + 接口清单
@@ -103,7 +109,65 @@ npm run dev
 
 或直接双击 `frontend/start-frontend.bat`。访问 <http://localhost:5173>。
 
+### 4. 部署到线上（单端口打包）
+
+本仓库开发时是**两个进程**（后端 8000 + 前端 Vite 5173），而发布环境只提供一个 HTTP 端口、
+且**不提供 MySQL**。`build-deploy.py` 会把它组装成一个自包含的单端口应用：
+
+```bash
+python build-deploy.py     # 生成 deploy/
+cd deploy && python run.py # 本地先自测，再发布
+```
+
+```
+deploy/
+├── app/              后端源码（backend/app 的副本）
+├── run.py            启动入口（读 PORT 环境变量，绑定 0.0.0.0）
+├── static/           前端构建产物（frontend/dist）
+├── requirements.txt  依赖清单（不含 PyMySQL —— 线上用 SQLite）
+└── .env              SQLite + SERVE_SPA=true + AUTO_SEED=true + 随机 JWT 密钥
+```
+
+三个开关都在 `backend/app/config.py`，**默认关闭**，所以本地开发行为完全不变：
+
+| 配置 | 作用 |
+| --- | --- |
+| `SERVE_SPA=true` | 后端直接在 `/` 上提供 `static/` 里的前端页面（含 SPA 深链接回退），于是「一个端口 = 整个应用」，也没有跨域问题 |
+| `AUTO_SEED=true` | 空库时自动写入演示数据，否则线上没有账号可登录 |
+| `ALLOW_SQLITE_FALLBACK` | MySQL 连不上时自动降级为本地 SQLite（本地无 MySQL 也能跑） |
+
+> **SQLite 兼容踩坑**：原先所有主键都是 `BigInteger`，而 SQLite 只对
+> `INTEGER PRIMARY KEY` 自增，`BIGINT PRIMARY KEY` 会导致插入报
+> `NOT NULL constraint failed: sys_user.id`。现改为
+> `BigInteger().with_variant(Integer, "sqlite")`，MySQL 仍是 `BIGINT`、SQLite 是 `INTEGER`。
+
+### 5. 线上环境的令牌传递（重要）
+
+线上站点的访问要经过发布平台的网关。该网关会在转发时**补写 `Authorization` 请求头**
+（实测：客户端一个头都不发，服务端仍收到一个 386 字节的 `authorization`），
+客户端真正携带的令牌会被盖掉 —— 表现为**登录成功、但随后所有鉴权接口都返回 401**。
+
+因此本项目**不依赖单一请求头**，`backend/app/deps.py` 按优先级依次尝试：
+
+```
+X-Auth-Token  →  Authorization  →  ?access_token= 查询参数
+   （主用）         （兼容本地/Swagger）      （兜底）
+```
+
+并且取的是**第一个「能解开」的令牌**而不是「第一个非空的」——否则网关塞进来的那个
+解不开的令牌会把后面所有可用通道全部挡住。前端 `src/api/request.js` 同时挂
+`X-Auth-Token` 与 `Authorization`，并在收到 401 时自动换载体重试一次。
+
+相关约定：
+
+- 本地开发、Swagger 调试直接用标准的 `Authorization: Bearer <token>`，**无需改动**；
+- 自定义令牌头固定为 `X-Auth-Token`（备选 `X-Token`），改动请同步 `deps.py` 与 `request.js`；
+- `GET /api/diagnostic/headers`（**仅 `DEBUG=true` 时开放**）会回显服务端实际收到的
+  请求头名称与各载体的「指纹」（是否存在 / 长度 / 是否形如 JWT），用于排查代理改写问题；
+  **它绝不回显任何请求头的原始值**。
+
 ## 五、演示账号
+
 
 | 角色 | 用户名 | 密码 | 演示邮箱 | 可访问入口 |
 | --- | --- | --- | --- | --- |
@@ -137,8 +201,10 @@ npm run dev
 
 ### 3. 权限与安全（论文 3.5）
 
-- 密码使用 PBKDF2-HMAC-SHA256 加盐哈希存储，不存明文；
-- 登录签发带有效期的 JWT，前端在请求头 `Authorization: Bearer <token>` 中携带；
+- 密码使用 PBKDF2-HMAC-SHA256（12 万次迭代）加盐哈希存储，不存明文；
+- 登录签发带有效期的 JWT，前端优先以请求头 `X-Auth-Token` 携带（同时附带标准的
+  `Authorization: Bearer <token>` 以兼容本地开发与 Swagger；两种载体都可单独使用，
+  原因见 §4.5）；
 - 后端依赖注入执行角色校验（用户 / 门店 / 管理员），订单查询按本人或所属门店限定数据范围；
 - 门店受理、拒绝、完成及管理员关键操作写入 `operation_log` 操作日志。
 
@@ -297,6 +363,16 @@ PNG / GIF 上传成功、文件落盘且字节一致、静态地址可访问且�
 - 另有 **7 项前端资源校验**：确认 dev server 已下发新组件、旧 `el-upload` 分支已彻底移除、
   三端账号页均引用同一 `AccountPanel`。
 
+**单端口部署包**再经 **31 项端到端用例**验证（全部通过）：在只有 SQLite、没有 MySQL、
+没有 Vite 的干净环境下冷启动，逐项校验「单端口同时提供前端与后端」、SPA 深链接刷新不 404、
+未知 `/api` 路径返回 JSON 而非 HTML、演示数据自动写入、三类账号可登录、头像上传与回读字节一致、
+公开演示的安全护栏（`reset` 验证码禁止回显），以及**令牌多载体**：
+仅用 `X-Auth-Token` / 仅用 `Authorization` / 仅用查询参数三种方式都能通过鉴权，
+并且「`Authorization` 被网关塞入解不开的令牌」时其余通道仍然生效；
+其中 1 项专门断言诊断接口**绝不回显任何令牌原文**，防止凭据泄露。
+同一组鉴权场景另在**开发模式**下复测 **20 项**（直连后端 8000 与经 Vite 代理 5173 各 10 项，全部通过），
+确保「多载体」改动没有破坏原有的本地开发链路。
+
 ## 九、界面与主题
 
 前端内置**浅色 / 暗色双主题**，右上角开关一键切换，选择会持久化到浏览器：
@@ -321,6 +397,8 @@ PNG / GIF 上传成功、文件落盘且字节一致、静态地址可访问且�
 | 注册/找回密码提示**邮件服务未配置** | `.env` 里 SMTP 为空且 `ALLOW_EMAIL_CODE_ECHO=false` | 填好 SMTP，或临时把 `ALLOW_EMAIL_CODE_ECHO` 设回 `true` 走调试回显 |
 | 接口报 `参数校验失败` / 中文乱码 | 数据库连接串缺少 `?charset=utf8mb4` | 检查 `DATABASE_URL` |
 | 老库启动报**字段不存在** | 旧库缺 `email` / `avatar` 列 | 执行 `cd backend && .venv\Scripts\python.exe migrate.py` |
+| **登录成功，但立刻又跳回登录页**、所有鉴权接口 401 | 反向代理补写/改写了 `Authorization` 头，客户端令牌被盖掉 | 已内置多载体方案（见 §4.5），无需处理；排查时先看 `GET /api/diagnostic/headers` |
+| 线上页面正常但接口全坏 | 发布包不是用 `build-deploy.py` 生成的，`SERVE_SPA` / `AUTO_SEED` 没生效 | 重新执行 `python build-deploy.py` 后再发布 |
 
 > 快捷键速查：后端 <http://127.0.0.1:8000/docs> ／ 前端 <http://localhost:5173> ／ 数据库连接见 `backend/.env`。
 

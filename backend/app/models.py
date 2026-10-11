@@ -21,6 +21,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
 
+# 主键 / 外键统一使用这个类型。
+# ⚠️ 不能直接写 BigInteger：**SQLite 的自增只对 `INTEGER PRIMARY KEY` 生效**，
+# `BIGINT PRIMARY KEY` 不是 rowid 的别名，插入时不写 id 会直接报
+# `NOT NULL constraint failed: xxx.id`。项目允许在无 MySQL 环境降级到 SQLite，
+# 所以这里用 with_variant 在 SQLite 方言下降级为 INTEGER，
+# MySQL 等其它方言仍保持 BIGINT（不影响既有表结构）。
+ID_TYPE = BigInteger().with_variant(Integer, "sqlite")
+
 
 # ---- 角色枚举（论文 2.2）----
 class Role:
@@ -77,7 +85,7 @@ class SysUser(Base):
 
     __tablename__ = "sys_user"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     real_name: Mapped[str | None] = mapped_column(String(50))
@@ -88,7 +96,7 @@ class SysUser(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default=Role.USER)
     status: Mapped[int] = mapped_column(Integer, nullable=False, default=CommonStatus.ENABLED)
     # 门店工作人员所属门店
-    store_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("store.id"))
+    store_id: Mapped[int | None] = mapped_column(ID_TYPE, ForeignKey("store.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -101,8 +109,8 @@ class Vehicle(Base):
     __tablename__ = "vehicle"
     __table_args__ = (UniqueConstraint("user_id", "plate_no", name="uq_vehicle_user_plate"),)
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("sys_user.id"), nullable=False, index=True)
+    id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ID_TYPE, ForeignKey("sys_user.id"), nullable=False, index=True)
     plate_no: Mapped[str] = mapped_column(String(20), nullable=False)
     brand: Mapped[str | None] = mapped_column(String(50))
     model: Mapped[str | None] = mapped_column(String(50))
@@ -118,7 +126,7 @@ class Store(Base):
 
     __tablename__ = "store"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     address: Mapped[str | None] = mapped_column(String(200))
     phone: Mapped[str | None] = mapped_column(String(20))
@@ -138,8 +146,8 @@ class ServiceItem(Base):
 
     __tablename__ = "service_item"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    store_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("store.id"), nullable=False, index=True)
+    id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
+    store_id: Mapped[int] = mapped_column(ID_TYPE, ForeignKey("store.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     category: Mapped[str | None] = mapped_column(String(50))
     duration: Mapped[int] = mapped_column(Integer, nullable=False, default=60)  # 预计服务时长（分钟）
@@ -159,8 +167,8 @@ class ServiceSlot(Base):
         UniqueConstraint("store_id", "slot_date", "start_time", name="uq_slot_store_date_start"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    store_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("store.id"), nullable=False, index=True)
+    id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
+    store_id: Mapped[int] = mapped_column(ID_TYPE, ForeignKey("store.id"), nullable=False, index=True)
     slot_date: Mapped[datetime] = mapped_column(Date, nullable=False, index=True)
     start_time: Mapped[datetime] = mapped_column(Time, nullable=False)
     end_time: Mapped[datetime] = mapped_column(Time, nullable=False)
@@ -176,13 +184,13 @@ class Reservation(Base):
 
     __tablename__ = "reservation"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
     order_no: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("sys_user.id"), nullable=False, index=True)
-    vehicle_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("vehicle.id"), nullable=False)
-    store_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("store.id"), nullable=False, index=True)
-    item_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("service_item.id"), nullable=False)
-    slot_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("service_slot.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ID_TYPE, ForeignKey("sys_user.id"), nullable=False, index=True)
+    vehicle_id: Mapped[int] = mapped_column(ID_TYPE, ForeignKey("vehicle.id"), nullable=False)
+    store_id: Mapped[int] = mapped_column(ID_TYPE, ForeignKey("store.id"), nullable=False, index=True)
+    item_id: Mapped[int] = mapped_column(ID_TYPE, ForeignKey("service_item.id"), nullable=False)
+    slot_id: Mapped[int] = mapped_column(ID_TYPE, ForeignKey("service_slot.id"), nullable=False, index=True)
 
     # 快照字段：避免项目调整影响历史订单
     item_name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -219,13 +227,13 @@ class OperationLog(Base):
 
     __tablename__ = "operation_log"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    operator_id: Mapped[int | None] = mapped_column(BigInteger)
+    id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
+    operator_id: Mapped[int | None] = mapped_column(ID_TYPE)
     operator_name: Mapped[str | None] = mapped_column(String(50))
     role: Mapped[str | None] = mapped_column(String(20))
     action: Mapped[str] = mapped_column(String(50), nullable=False)
     target_type: Mapped[str | None] = mapped_column(String(50))
-    target_id: Mapped[int | None] = mapped_column(BigInteger)
+    target_id: Mapped[int | None] = mapped_column(ID_TYPE)
     detail: Mapped[str | None] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -235,7 +243,7 @@ class EmailCode(Base):
 
     __tablename__ = "email_code"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     code: Mapped[str] = mapped_column(String(10), nullable=False)
     purpose: Mapped[str] = mapped_column(String(20), nullable=False, default="register")

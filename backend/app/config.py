@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     EMAIL_CODE_COOLDOWN_SECONDS: int = 60
     # 未配置 SMTP 且在 DEBUG 模式下，是否允许在接口响应中回显验证码（仅便于本地调试，生产务必关闭）
     ALLOW_EMAIL_CODE_ECHO: bool = True
+    # 允许回显验证码的「用途」白名单（仅当未配置 SMTP 且 DEBUG 时生效）。
+    # 注意：公开演示环境务必只保留 register —— 否则任何人都能申请 reset 验证码、
+    # 从响应里读到它，进而重置 admin 的密码，把演示账号锁死。
+    ECHO_CODE_PURPOSES: List[str] = ["register", "reset", "change_email"]
 
     # 跨域
     CORS_ORIGINS: List[str] = [
@@ -43,6 +47,14 @@ class Settings(BaseSettings):
         "http://localhost:4173",
         "http://127.0.0.1:4173",
     ]
+
+    # ---------------- 单端口部署（把前端构建产物交给后端一起提供）----------------
+    # 默认关闭，保证本地开发行为不变（本地开发时前端由 Vite dev server 提供）。
+    # 发布/演示环境把它打开，后端就会在 / 上提供 frontend/dist（或同级 static/），
+    # 于是「一个端口 = 整个应用」，无需再单独跑前端、也没有跨域问题。
+    SERVE_SPA: bool = False
+    # 数据库为空时自动写入演示数据（线上没有演示账号就登录不了，所以发布环境需要打开）
+    AUTO_SEED: bool = False
 
 
 @lru_cache

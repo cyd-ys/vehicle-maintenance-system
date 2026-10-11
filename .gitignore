@@ -31,3 +31,6 @@ Thumbs.db
 # 临时目录 / 智能体工作区（含本地调试脚本与笔记，切勿发布）
 .tmp/
 .workbuddy/
+
+# 部署包（由 build-deploy.py 生成，不要提交）
+deploy/

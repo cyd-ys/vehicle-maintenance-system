@@ -7,11 +7,26 @@ const service = axios.create({
   timeout: 15000
 })
 
+// 令牌同时挂在自定义头和标准 Authorization 头上。
+// 原因：部分反向代理（例如发布平台的网关）会补写/改写 Authorization 请求头，
+// 客户端携带的令牌会被覆盖，表现为「登录成功但所有鉴权接口都 401」。
+// 后端因此优先读取 X-Auth-Token，标准头只用于兼容本地开发与 Swagger 调试。
+function attachToken(config, token) {
+  if (!config.headers) config.headers = {}
+  if (typeof config.headers.set === 'function') {
+    config.headers.set('X-Auth-Token', token)
+    config.headers.set('Authorization', `Bearer ${token}`)
+  } else {
+    config.headers['X-Auth-Token'] = token
+    config.headers.Authorization = `Bearer ${token}`
+  }
+}
+
 service.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+      attachToken(config, token)
     }
     return config
   },
@@ -30,16 +45,43 @@ service.interceptors.response.use(
     }
     return res
   },
-  (error) => {
+  async (error) => {
+    let err = error
+    const config = err.config || {}
+
+    // 自愈重试：万一连自定义头也被网关过滤掉，就改用查询参数把请求重发一次。
+    // 只重试一次（__tokenRetried 标记），避免死循环。
+    if (err.response && err.response.status === 401 && !config.__tokenRetried) {
+      const token = localStorage.getItem('token')
+      if (token) {
+        config.__tokenRetried = true
+        config.params = { ...(config.params || {}), access_token: token }
+        attachToken(config, token)
+        try {
+          return await service.request(config)
+        } catch (retryError) {
+          // 重试仍失败：内层拦截器已经提示并跳转过，这里标记后直接抛出，避免重复弹窗
+          if (retryError && typeof retryError === 'object') retryError.__handled = true
+          err = retryError
+        }
+      }
+    }
+    if (err && err.__handled) return Promise.reject(err)
+
     // 完全没有响应体：请求根本没到达服务端（后端没启动 / 端口不通 / 被代理阻断）
-    if (!error.response) {
-      const reason = error.code === 'ECONNABORTED' ? '请求超时' : '无法连接后端服务'
-      ElMessage.error(`${reason}，请确认后端已在 127.0.0.1:8000 运行（可双击项目根目录的 start-all.bat）`)
-      return Promise.reject(error)
+    if (!err.response) {
+      const reason = err.code === 'ECONNABORTED' ? '请求超时' : '无法连接后端服务'
+      // 线上是单端口部署（前后端同源），本地开发才是 8000 + 5173 两个端口
+      const dev = ['localhost', '127.0.0.1'].includes(location.hostname) && location.port === '5173'
+      const hint = dev
+        ? '（可双击项目根目录的 start-all.bat 后重试）'
+        : '，请稍后重试'
+      ElMessage.error(`${reason}${hint}`)
+      return Promise.reject(err)
     }
 
-    const status = error.response.status
-    const message = error.response?.data?.message || error.message || '网络异常'
+    const status = err.response.status
+    const message = err.response?.data?.message || err.message || '网络异常'
     if (status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
@@ -50,7 +92,7 @@ service.interceptors.response.use(
     } else {
       ElMessage.error(message)
     }
-    return Promise.reject(error)
+    return Promise.reject(err)
   }
 )
 

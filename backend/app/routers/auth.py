@@ -155,7 +155,7 @@ def _deliver_code(email: str, code: str, purpose: str) -> tuple[bool, str | None
             raise HTTPException(status_code=502, detail=f"验证码邮件发送失败：{exc}") from exc
         return True, None
 
-    if settings.DEBUG and settings.ALLOW_EMAIL_CODE_ECHO:
+    if settings.DEBUG and settings.ALLOW_EMAIL_CODE_ECHO and purpose in settings.ECHO_CODE_PURPOSES:
         print(f"[email] SMTP 未配置，验证码 {code} -> {email}")
         return False, code
 
